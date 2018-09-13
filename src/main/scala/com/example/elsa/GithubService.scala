@@ -1,6 +1,6 @@
 package com.example.elsa
 
-import akka.actor.{ Actor, ActorLogging, ActorRef, Props }
+import akka.actor.{ Actor, ActorLogging, ActorRef, Props, Status }
 import akka.http.scaladsl.HttpExt
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.model._
@@ -21,8 +21,8 @@ object GithubService {
   case class RepositoryInfo(name: String, contributors: Seq[ContributorInfo])
   case class ContributorInfo(name: String, commits: Int)
 
-  private case class Repository(name: String, contributors_url: String)
-  private case class Contributor(login: String, contributions: Int)
+  case class Repository(name: String, contributors_url: String)
+  case class Contributor(login: String, contributions: Int)
 
   private case class RepositoriesRequest(uri: Uri)
   private case class RepositoriesResponse(response: HttpResponse)
@@ -101,6 +101,8 @@ class GithubService(http: HttpExt)(implicit materializer: Materializer) extends 
       }
       pending -= 1
       checkPending(username, replyTo)
+
+    case Status.Failure(e) => log.error("Failure", e)
   }
 
   private def checkPending(username: String, replyTo: ActorRef): Unit = {
@@ -109,15 +111,12 @@ class GithubService(http: HttpExt)(implicit materializer: Materializer) extends 
       val repositories = data.map {
         case (k, v) =>
           val contributors = v.map {
-              case (commits, name) => ContributorInfo(name, commits)
-            }.toSeq
+            case (commits, name) => ContributorInfo(name, commits)
+          }.toSeq
           RepositoryInfo(k, contributors)
-        }.toSeq
+      }.toSeq
       replyTo ! UserInfo(username, repositories)
-      /*import spray.json._
-      println(iMap.toJson.prettyPrint)
-      log.info("terminating...")
-      http.shutdownAllConnectionPools().foreach(_ => context.system.terminate())*/
+      http.shutdownAllConnectionPools().foreach(_ => context.system.terminate())
     }
   }
 }
