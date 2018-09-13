@@ -49,6 +49,7 @@ class GithubService(http: HttpExt)(implicit materializer: Materializer) extends 
 
   override def receive: Receive = {
     case GetUserInfo(username, token) =>
+      log.info(s"GetUserInfo - $username $token")
       val auth = Authorization(GenericHttpCredentials("token", token))
       self ! RepositoriesRequest(s"https://api.github.com/users/$username/repos")
       pending += 1

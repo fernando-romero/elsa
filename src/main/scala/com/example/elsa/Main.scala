@@ -18,7 +18,7 @@ object Main extends App with SprayJsonSupport with DefaultJsonProtocol {
   try {
     implicit val system = ActorSystem()
     implicit val materializer = ActorMaterializer()
-    implicit val timeout: Timeout = 5.seconds
+    implicit val timeout: Timeout = 30.seconds
 
     implicit val contributorInfoFormat = jsonFormat2(GithubService.ContributorInfo)
     implicit val repositoryInfoFormat = jsonFormat2(GithubService.RepositoryInfo)
