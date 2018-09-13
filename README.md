@@ -55,7 +55,7 @@ The output will be a pretty printed json in the terminal. Example:
     }]
   }]
 }
-``
+```
 
 #Logging
 In `application.conf` the log level of Akka can be set in order to debug the application.
