@@ -44,7 +44,7 @@ class GithubService(http: HttpExt)(implicit materializer: Materializer) extends 
   implicit val repositoryFormat = jsonFormat2(Repository)
   implicit val contributorFormat = jsonFormat2(Contributor)
 
-  private var data: mutable.Map[String, mutable.SortedMap[Int, String]] = mutable.Map.empty
+  private var data: mutable.Map[String, mutable.Map[String, Int]] = mutable.Map.empty
   private var pending = 0
 
   override def receive: Receive = {
@@ -72,7 +72,7 @@ class GithubService(http: HttpExt)(implicit materializer: Materializer) extends 
       repositories.foreach { repository =>
         self ! ContributorsRequest(repository.name, repository.contributors_url)
         pending += 1
-        data += (repository.name -> mutable.SortedMap.empty(Ordering[Int].reverse))
+        data += (repository.name -> mutable.Map.empty)
       }
       link.flatMap(extractNext).foreach { next =>
         self ! RepositoriesRequest(next)
@@ -94,7 +94,7 @@ class GithubService(http: HttpExt)(implicit materializer: Materializer) extends 
     case ContributorsData(repositoryName, contributors, link) =>
       log.info(s"ContributorsData - $repositoryName ${contributors.size}")
       contributors.foreach { contributor =>
-        data.get(repositoryName).foreach(_ += (contributor.contributions -> contributor.login))
+        data.get(repositoryName).foreach(_ += (contributor.login -> contributor.contributions))
       }
       link.flatMap(extractNext).foreach { next =>
         self ! ContributorsRequest(repositoryName, next)
@@ -112,9 +112,9 @@ class GithubService(http: HttpExt)(implicit materializer: Materializer) extends 
       val repositories = data.map {
         case (k, v) =>
           val contributors = v.map {
-            case (commits, name) => ContributorInfo(name, commits)
+            case (name, commits) => ContributorInfo(name, commits)
           }.toSeq
-          RepositoryInfo(k, contributors)
+          RepositoryInfo(k, contributors.sortBy(_.commits)(Ordering[Int].reverse))
       }.toSeq
       replyTo ! UserInfo(username, repositories)
       http.shutdownAllConnectionPools().foreach(_ => context.system.terminate())
